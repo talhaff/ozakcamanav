@@ -46,7 +46,7 @@ export default function LedgerForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<LedgerFormValues>({
-    resolver: zodResolver(ledgerFormSchema),
+    resolver: zodResolver(ledgerFormSchema) as any,
     defaultValues: {
       date: new Date(),
       income: {
@@ -187,7 +187,6 @@ export default function LedgerForm() {
                           disabled={(date) =>
                             date > new Date() || date < new Date("1900-01-01")
                           }
-                          initialFocus
                           className="p-3"
                         />
                       </PopoverContent>

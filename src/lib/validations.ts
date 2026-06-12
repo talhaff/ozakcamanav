@@ -8,7 +8,7 @@ export const expenseSchema = z.object({
 
 export const ledgerFormSchema = z.object({
   date: z.date({
-    required_error: "Tarih seçimi zorunludur.",
+    message: "Tarih seçimi zorunludur.",
   }),
   income: z.object({
     cash: z.coerce.number().min(0, "Nakit gelir 0 veya daha büyük olmalıdır."),

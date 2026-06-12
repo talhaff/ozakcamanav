@@ -106,7 +106,7 @@ export default function DashboardView({ stats, chartData }: DashboardViewProps) 
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#71717a' }} />
                   <Tooltip 
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number) => [`₺${value.toLocaleString('tr-TR')}`, 'Net Kâr']}
+                    formatter={(value: any) => [`₺${Number(value || 0).toLocaleString('tr-TR')}`, 'Net Kâr']}
                   />
                   <Area
                     type="monotone"
@@ -138,7 +138,7 @@ export default function DashboardView({ stats, chartData }: DashboardViewProps) 
                   <Tooltip 
                     cursor={{ fill: '#f4f4f5' }}
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number, name: string) => {
+                    formatter={(value: any, name: any) => {
                       const label = name === 'income' ? 'Hasılat' : 'Gider';
                       return [`₺${value.toLocaleString('tr-TR')}`, label];
                     }}
