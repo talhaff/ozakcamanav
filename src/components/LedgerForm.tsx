@@ -17,7 +17,7 @@ import {
   Receipt,
   FileText
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -90,9 +90,17 @@ export default function LedgerForm() {
   const totalExpense = watchedExpenses?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0;
   const netProfit = totalIncome - totalExpense;
 
+  const lastFetchedDateRef = useRef<string | null>(null);
+
   useEffect(() => {
     async function fetchLedger() {
       if (!watchedDate) return;
+      
+      const currentStr = format(watchedDate, "yyyy-MM-dd");
+      if (lastFetchedDateRef.current === currentStr) return;
+      
+      lastFetchedDateRef.current = currentStr;
+      
       const res = await getLedgerByDate(watchedDate.toISOString());
       
       if (res) {
