@@ -92,7 +92,7 @@ export default function DashboardView({ stats, chartData }: DashboardViewProps) 
             <CardDescription>Son 30 gündeki günlük kâr/zarar gidişatı.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[350px] w-full mt-4">
+            <div className="h-[250px] md:h-[350px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
@@ -129,7 +129,7 @@ export default function DashboardView({ stats, chartData }: DashboardViewProps) 
             <CardDescription>Günlük bazda Hasılat ve Masraflar.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[350px] w-full mt-4">
+            <div className="h-[250px] md:h-[350px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />

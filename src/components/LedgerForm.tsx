@@ -146,8 +146,8 @@ export default function LedgerForm() {
         </div>
 
         {/* TOP ROW: Date & Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6">
-          <Card className="col-span-1 border-zinc-200 shadow-xs hover:border-zinc-300 transition-colors bg-white/50 backdrop-blur-sm">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+          <Card className="col-span-2 md:col-span-1 border-zinc-200 shadow-xs hover:border-zinc-300 transition-colors bg-white/50 backdrop-blur-sm">
             <CardHeader className="pb-3 pt-5 px-5">
               <CardTitle className="text-sm text-zinc-500 font-medium flex items-center gap-2">
                 <CalendarIcon className="w-4 h-4" />
@@ -412,7 +412,7 @@ export default function LedgerForm() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-end sticky bottom-6 z-20">
+          <div className="flex justify-end sticky bottom-[100px] md:bottom-6 z-20">
             <Button 
               type="submit" 
               size="lg" 
