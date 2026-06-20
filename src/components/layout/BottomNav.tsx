@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, PenSquare } from "lucide-react";
+import { LayoutDashboard, PenSquare, FileText } from "lucide-react";
 import clsx from "clsx";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Kayıt Gir", href: "/kayit", icon: PenSquare },
+  { name: "Raporlar", href: "/raporlar", icon: FileText },
 ];
 
 export default function BottomNav() {

@@ -14,6 +14,7 @@ export const ledgerFormSchema = z.object({
     cash: z.coerce.number().min(0, "Nakit gelir 0 veya daha büyük olmalıdır."),
     creditCard: z.coerce.number().min(0, "Kredi kartı geliri 0 veya daha büyük olmalıdır."),
   }),
+  hal: z.coerce.number().min(0, "Hal ödemesi 0 veya daha büyük olmalıdır.").default(0),
   expenses: z.array(expenseSchema),
   notes: z.string().optional(),
 });

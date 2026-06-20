@@ -33,7 +33,7 @@ export async function saveLedger(data: LedgerFormValues) {
 
     await connectToDatabase();
     
-    const { date, income, expenses, notes } = parsedData.data;
+    const { date, income, expenses, notes, hal } = parsedData.data;
     const targetDate = startOfDay(new Date(date));
 
     // Find if a ledger for this date already exists
@@ -48,6 +48,7 @@ export async function saveLedger(data: LedgerFormValues) {
       // Update existing
       ledger.income = income;
       ledger.expenses = expenses;
+      ledger.hal = hal;
       ledger.notes = notes;
       await ledger.save(); // pre-save hook will recalculate totals
     } else {
@@ -56,6 +57,7 @@ export async function saveLedger(data: LedgerFormValues) {
         date: targetDate,
         income,
         expenses,
+        hal,
         notes,
       });
       await ledger.save();
@@ -146,5 +148,134 @@ export async function getDashboardData(days: number = 30) {
       stats: { totalIncome: 0, totalExpense: 0, netProfit: 0 },
       chartData: [],
     };
+  }
+}
+
+/**
+ * Deletes a ledger entry for a specific date
+ */
+export async function deleteLedger(dateStr: string) {
+  try {
+    await connectToDatabase();
+    const targetDate = startOfDay(new Date(dateStr));
+    
+    const result = await Ledger.deleteOne({
+      date: {
+        $gte: targetDate,
+        $lte: endOfDay(targetDate),
+      },
+    });
+
+    if (result.deletedCount > 0) {
+      revalidatePath("/");
+      revalidatePath("/kayit");
+      return { success: true, message: "Kayıt başarıyla silindi." };
+    } else {
+      return { success: false, error: "Silinecek kayıt bulunamadı." };
+    }
+  } catch (error: any) {
+    console.error("Delete Ledger Error:", error);
+    return { success: false, error: error.message || "Bilinmeyen bir hata oluştu" };
+  }
+}
+
+export interface ReportStats {
+  totalIncome: number;
+  totalCashIncome: number;
+  totalCreditCardIncome: number;
+  totalExpense: number;
+  totalHalExpense: number;
+  totalOtherExpense: number;
+  netProfit: number;
+  categoryBreakdown: { category: string; amount: number }[];
+}
+
+/**
+ * Fetches report statistics and daily ledger details for a custom date range
+ */
+export async function getReportData(startDateStr: string, endDateStr: string) {
+  try {
+    await connectToDatabase();
+    
+    const startDate = startOfDay(new Date(startDateStr));
+    const endDate = endOfDay(new Date(endDateStr));
+
+    const ledgers = await Ledger.find({
+      date: {
+        $gte: startDate,
+        $lte: endDate,
+      },
+    }).sort({ date: 1 }).lean();
+
+    let totalCashIncome = 0;
+    let totalCreditCardIncome = 0;
+    let totalHalExpense = 0;
+    let totalOtherExpense = 0;
+
+    const categoryMap: { [key: string]: number } = {};
+
+    ledgers.forEach((ledger) => {
+      totalCashIncome += ledger.income?.cash || 0;
+      totalCreditCardIncome += ledger.income?.creditCard || 0;
+      totalHalExpense += ledger.hal || 0;
+
+      ledger.expenses?.forEach((exp) => {
+        const amt = exp.amount || 0;
+        totalOtherExpense += amt;
+        const cat = exp.category || "Diğer";
+        categoryMap[cat] = (categoryMap[cat] || 0) + amt;
+      });
+    });
+
+    const totalIncome = totalCashIncome + totalCreditCardIncome;
+    const totalExpense = totalHalExpense + totalOtherExpense;
+    const netProfit = totalIncome - totalExpense;
+
+    const categoryBreakdown = Object.keys(categoryMap).map((cat) => ({
+      category: cat,
+      amount: categoryMap[cat],
+    })).sort((a, b) => b.amount - a.amount);
+
+    return {
+      success: true,
+      stats: {
+        totalIncome,
+        totalCashIncome,
+        totalCreditCardIncome,
+        totalExpense,
+        totalHalExpense,
+        totalOtherExpense,
+        netProfit,
+        categoryBreakdown,
+      } as ReportStats,
+      ledgers: JSON.parse(JSON.stringify(ledgers)) as ILedger[],
+    };
+  } catch (error: any) {
+    console.error("Get Report Data Error:", error);
+    return { success: false, error: error.message || "Bilinmeyen bir hata oluştu" };
+  }
+}
+
+/**
+ * Fetches the ledger entry for today's date
+ */
+export async function getTodayLedger() {
+  try {
+    await connectToDatabase();
+    const today = startOfDay(new Date());
+
+    const ledger = await Ledger.findOne({
+      date: {
+        $gte: today,
+        $lte: endOfDay(today),
+      },
+    }).lean();
+
+    if (!ledger) return null;
+
+    return JSON.parse(JSON.stringify(ledger)) as ILedger;
+  } catch (error) {
+    console.error("Get Today Ledger Error:", error);
+    return null;
   }
 }

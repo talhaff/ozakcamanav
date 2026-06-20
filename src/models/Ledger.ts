@@ -13,6 +13,7 @@ export interface ILedger extends Document {
     creditCard: number;
   };
   expenses: IExpense[];
+  hal: number;
   totalIncome: number;
   totalExpense: number;
   netProfit: number;
@@ -35,6 +36,7 @@ const LedgerSchema = new Schema<ILedger>(
       creditCard: { type: Number, default: 0, min: 0 },
     },
     expenses: { type: [ExpenseSchema], default: [] },
+    hal: { type: Number, default: 0, min: 0 },
     notes: { type: String },
     // Calculated fields stored in DB for fast querying and data integrity
     totalIncome: { type: Number, default: 0 },
@@ -52,7 +54,8 @@ LedgerSchema.pre("save", function () {
   const creditCard = this.income?.creditCard || 0;
   this.totalIncome = cash + creditCard;
 
-  this.totalExpense = this.expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+  const hal = this.hal || 0;
+  this.totalExpense = this.expenses.reduce((acc, curr) => acc + (curr.amount || 0), 0) + hal;
   
   this.netProfit = this.totalIncome - this.totalExpense;
 });

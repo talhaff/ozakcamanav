@@ -15,7 +15,8 @@ import {
   TrendingDown, 
   Wallet,
   Receipt,
-  FileText
+  FileText,
+  Store
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -40,10 +41,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 import { ledgerFormSchema, LedgerFormValues } from "@/lib/validations";
-import { saveLedger, getLedgerByDate } from "@/actions/ledger";
+import { saveLedger, getLedgerByDate, deleteLedger } from "@/actions/ledger";
 
 export default function LedgerForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [hasExistingRecord, setHasExistingRecord] = useState(false);
 
   const form = useForm<LedgerFormValues>({
     resolver: zodResolver(ledgerFormSchema) as any,
@@ -53,6 +56,7 @@ export default function LedgerForm() {
         cash: 0,
         creditCard: 0,
       },
+      hal: 0,
       expenses: [],
       notes: "",
     },
@@ -81,13 +85,42 @@ export default function LedgerForm() {
     }
   }
 
+  async function onDeleteClick() {
+    if (!watchedDate) return;
+    if (!confirm(`${format(watchedDate, "d MMMM yyyy", { locale: tr })} tarihli kaydı tamamen silmek istediğinize emin misiniz?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const res = await deleteLedger(watchedDate.toISOString());
+      if (res.success) {
+        toast.success(res.message);
+        setHasExistingRecord(false);
+        form.reset({
+          date: watchedDate,
+          income: { cash: 0, creditCard: 0 },
+          hal: 0,
+          expenses: [],
+          notes: "",
+        });
+      } else {
+        toast.error(res.error || "Silme işlemi sırasında hata oluştu.");
+      }
+    } catch (error) {
+      toast.error("Sunucuya bağlanırken bir hata oluştu.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   // Calculate dynamic totals for the UI
   const watchedIncome = form.watch("income");
   const watchedExpenses = form.watch("expenses");
   const watchedDate = form.watch("date");
   
   const totalIncome = (Number(watchedIncome?.cash) || 0) + (Number(watchedIncome?.creditCard) || 0);
-  const totalExpense = watchedExpenses?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0;
+  const totalExpense = (watchedExpenses?.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || 0) + (Number(form.watch("hal")) || 0);
   const netProfit = totalIncome - totalExpense;
 
   const lastFetchedDateRef = useRef<string | null>(null);
@@ -104,16 +137,20 @@ export default function LedgerForm() {
       const res = await getLedgerByDate(watchedDate.toISOString());
       
       if (res) {
+        setHasExistingRecord(true);
         form.reset({
           date: watchedDate,
           income: res.income,
+          hal: res.hal || 0,
           expenses: res.expenses || [],
           notes: res.notes || "",
         });
       } else {
+        setHasExistingRecord(false);
         form.reset({
           date: watchedDate,
           income: { cash: 0, creditCard: 0 },
+          hal: 0,
           expenses: [],
           notes: "",
         });
@@ -242,62 +279,100 @@ export default function LedgerForm() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* INCOME SECTION */}
-          <Card className="col-span-1 lg:col-span-5 border-zinc-200/60 shadow-sm bg-white/60 backdrop-blur-xl">
-            <CardHeader className="border-b border-zinc-100/50 pb-6 bg-zinc-50/50 rounded-t-xl">
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Wallet className="w-5 h-5 text-emerald-600" />
-                Gelirler (Hasılat)
-              </CardTitle>
-              <CardDescription>Günlük kasanızı ve pos cihazını girin.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              <FormField
-                control={form.control}
-                name="income.cash"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2 text-zinc-700 font-medium mb-2">
-                      <Banknote className="w-4 h-4 text-zinc-400" />
-                      Nakit Hasılat (₺)
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01" 
-                        placeholder="0.00" 
-                        {...field} 
-                        className="text-2xl font-semibold h-14 bg-white border-zinc-200 focus-visible:ring-emerald-500 focus-visible:border-emerald-500 shadow-xs transition-all" 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="income.creditCard"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="flex items-center gap-2 text-zinc-700 font-medium mb-2">
-                      <CreditCard className="w-4 h-4 text-zinc-400" />
-                      Kredi Kartı Hasılatı (₺)
-                    </FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01" 
-                        placeholder="0.00" 
-                        {...field} 
-                        className="text-2xl font-semibold h-14 bg-white border-zinc-200 focus-visible:ring-emerald-500 focus-visible:border-emerald-500 shadow-xs transition-all" 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+          {/* LEFT COLUMN: INCOME & HAL EXPENSE */}
+          <div className="col-span-1 lg:col-span-5 space-y-6">
+            {/* INCOME SECTION */}
+            <Card className="border-zinc-200/60 shadow-sm bg-white/60 backdrop-blur-xl">
+              <CardHeader className="border-b border-zinc-100/50 pb-6 bg-zinc-50/50 rounded-t-xl">
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-emerald-600" />
+                  Gelirler (Hasılat)
+                </CardTitle>
+                <CardDescription>Günlük kasanızı ve pos cihazı hasılatınızı girin.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-6">
+                <FormField
+                  control={form.control}
+                  name="income.cash"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-zinc-700 font-medium mb-2">
+                        <Banknote className="w-4 h-4 text-zinc-400" />
+                        Nakit Hasılat (₺)
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          placeholder="0.00" 
+                          {...field} 
+                          className="text-2xl font-semibold h-14 bg-white border-zinc-200 focus-visible:ring-emerald-500 focus-visible:border-emerald-500 shadow-xs transition-all" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="income.creditCard"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-zinc-700 font-medium mb-2">
+                        <CreditCard className="w-4 h-4 text-zinc-400" />
+                        Kredi Kartı Hasılatı (₺)
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          placeholder="0.00" 
+                          {...field} 
+                          className="text-2xl font-semibold h-14 bg-white border-zinc-200 focus-visible:ring-emerald-500 focus-visible:border-emerald-500 shadow-xs transition-all" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* HAL EXPENSE SECTION */}
+            <Card className="border-zinc-200/60 shadow-sm bg-white/60 backdrop-blur-xl">
+              <CardHeader className="border-b border-zinc-100/50 pb-6 bg-zinc-50/50 rounded-t-xl">
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <Store className="w-5 h-5 text-amber-600" />
+                  Hal Mal Alışı (Ana Gider)
+                </CardTitle>
+                <CardDescription>Meyve-sebze halinden alınan ürünlerin toplam tutarını girin.</CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <FormField
+                  control={form.control}
+                  name="hal"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center gap-2 text-zinc-700 font-medium mb-2">
+                        <Store className="w-4 h-4 text-zinc-400" />
+                        Hal Alış Tutarı (₺)
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          placeholder="0.00" 
+                          {...field} 
+                          className="text-2xl font-semibold h-14 bg-white border-zinc-200 focus-visible:ring-rose-500 focus-visible:border-rose-500 shadow-xs transition-all" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+          </div>
 
           {/* EXPENSES SECTION */}
           <Card className="col-span-1 lg:col-span-7 border-zinc-200/60 shadow-sm flex flex-col bg-white/60 backdrop-blur-xl">
@@ -305,9 +380,9 @@ export default function LedgerForm() {
               <div>
                 <CardTitle className="text-xl flex items-center gap-2">
                   <Receipt className="w-5 h-5 text-rose-500" />
-                  Gider Kalemleri
+                  Diğer Gider Kalemleri
                 </CardTitle>
-                <CardDescription className="mt-1">Toptancı, personel, fatura vb. masraflar.</CardDescription>
+                <CardDescription className="mt-1">Personel, fatura, kira, poşet vb. ek masraflar.</CardDescription>
               </div>
               <Button
                 type="button"
@@ -412,12 +487,31 @@ export default function LedgerForm() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-end sticky bottom-[100px] md:bottom-6 z-20">
+          <div className="flex justify-end sticky bottom-[100px] md:bottom-6 z-20 gap-4">
+            {hasExistingRecord && (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full md:w-auto text-rose-600 border-rose-200 bg-rose-50 hover:bg-rose-100 hover:text-rose-700 h-14 rounded-2xl font-semibold text-lg"
+                disabled={isDeleting || isSubmitting}
+                onClick={onDeleteClick}
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                    Siliniyor...
+                  </>
+                ) : (
+                  "Kayıdı Sil"
+                )}
+              </Button>
+            )}
             <Button 
               type="submit" 
               size="lg" 
               className="w-full md:w-auto md:min-w-[280px] h-14 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold text-lg shadow-xl shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all hover:-translate-y-0.5"
-              disabled={isSubmitting}
+              disabled={isSubmitting || isDeleting}
             >
               {isSubmitting ? (
                 <>
@@ -425,7 +519,7 @@ export default function LedgerForm() {
                   Kaydediliyor...
                 </>
               ) : (
-                "Günü Kaydet"
+                hasExistingRecord ? "Kayıdı Güncelle" : "Günü Kaydet"
               )}
             </Button>
           </div>

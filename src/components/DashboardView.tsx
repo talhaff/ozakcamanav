@@ -13,17 +13,34 @@ import {
   Legend,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { DashboardStats, DailyChartData } from "@/actions/ledger";
-import { TrendingUp, TrendingDown, DollarSign, Wallet } from "lucide-react";
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  Wallet,
+  Calendar,
+  Plus,
+  Banknote,
+  CreditCard,
+  Store,
+  Receipt
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ILedger } from "@/models/Ledger";
 
 interface DashboardViewProps {
   stats: DashboardStats;
   chartData: DailyChartData[];
+  todayLedger?: ILedger | null;
 }
 
-export default function DashboardView({ stats, chartData }: DashboardViewProps) {
+export default function DashboardView({ stats, chartData, todayLedger }: DashboardViewProps) {
   const isProfit = stats.netProfit >= 0;
+  const router = useRouter();
 
   return (
     <div className="space-y-8">
@@ -33,6 +50,80 @@ export default function DashboardView({ stats, chartData }: DashboardViewProps) 
           Son 30 günün gelir, gider ve net kâr durumu.
         </p>
       </div>
+
+      {/* TODAY'S SUMMARY BANNER */}
+      {!todayLedger ? (
+        <Card className="border-amber-200 bg-amber-50/50 shadow-xs">
+          <CardContent className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-6">
+            <div className="flex items-start gap-3.5">
+              <div className="h-10 w-10 bg-amber-100 rounded-full flex items-center justify-center text-amber-700 shrink-0 mt-0.5">
+                <Calendar className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-amber-900">Bugün İçin Defter Kaydı Girilmedi</h3>
+                <p className="text-sm text-amber-700 mt-0.5">Günün hasılat ve giderlerini girmek için hemen kayıt oluşturabilirsiniz.</p>
+              </div>
+            </div>
+            <Button onClick={() => router.push("/kayit")} className="bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl transition-all shadow-xs gap-2 shrink-0 self-start sm:self-center h-11 px-5 cursor-pointer">
+              <Plus className="w-4 h-4 inline mr-1.5" />
+              Bugünün Kaydını Gir
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-zinc-200/60 shadow-md bg-white overflow-hidden">
+          <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-zinc-100 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-emerald-600" />
+                Bugünün Finansal Özeti
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">Bugün girilen kayıtların anlık dağılımı.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className={cn(
+                "text-sm font-extrabold px-3 py-1.5 rounded-full flex items-center gap-1.5",
+                todayLedger.netProfit >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+              )}>
+                Bugünkü Net: ₺{todayLedger.netProfit.toLocaleString("tr-TR")}
+              </span>
+              <Button onClick={() => router.push("/kayit")} variant="outline" size="sm" className="h-9 px-4 rounded-lg text-zinc-700 border-zinc-200 bg-white hover:bg-zinc-50 cursor-pointer">
+                Kaydı Düzenle
+              </Button>
+            </div>
+          </div>
+          <CardContent className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-zinc-100 p-0">
+            <div className="p-5 space-y-1">
+              <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider flex items-center gap-1">
+                <Banknote className="w-3.5 h-3.5 text-zinc-400" />
+                Nakit Gelir
+              </span>
+              <div className="text-xl font-bold text-zinc-800">₺{(todayLedger.income?.cash || 0).toLocaleString("tr-TR")}</div>
+            </div>
+            <div className="p-5 space-y-1">
+              <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider flex items-center gap-1">
+                <CreditCard className="w-3.5 h-3.5 text-zinc-400" />
+                Kredi Kartı
+              </span>
+              <div className="text-xl font-bold text-zinc-800">₺{(todayLedger.income?.creditCard || 0).toLocaleString("tr-TR")}</div>
+            </div>
+            <div className="p-5 space-y-1 col-span-1">
+              <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider flex items-center gap-1">
+                <Store className="w-3.5 h-3.5 text-zinc-400" />
+                Hal Gideri
+              </span>
+              <div className="text-xl font-bold text-rose-600">₺{(todayLedger.hal || 0).toLocaleString("tr-TR")}</div>
+            </div>
+            <div className="p-5 space-y-1 col-span-1">
+              <span className="text-xs text-zinc-400 font-medium uppercase tracking-wider flex items-center gap-1">
+                <Receipt className="w-3.5 h-3.5 text-zinc-400" />
+                Diğer Gider
+              </span>
+              <div className="text-xl font-bold text-rose-600">₺{(todayLedger.totalExpense - (todayLedger.hal || 0)).toLocaleString("tr-TR")}</div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* STATS CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

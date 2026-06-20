@@ -7,7 +7,8 @@ import {
   PenSquare, 
   Settings, 
   LogOut, 
-  Store 
+  Store,
+  FileText
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 import clsx from "clsx";
@@ -15,6 +16,7 @@ import clsx from "clsx";
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Kayıt Gir", href: "/kayit", icon: PenSquare },
+  { name: "Raporlar", href: "/raporlar", icon: FileText },
 ];
 
 export default function Sidebar() {
